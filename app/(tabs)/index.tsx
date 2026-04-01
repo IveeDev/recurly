@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useUser } from "@clerk/expo";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
+import { usePostHog } from "posthog-react-native";
 import { useState } from "react";
 import { FlatList, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +21,7 @@ const SafeAreaView = styled(RNSafeAreaView);
 
 export default function Index() {
   const { user } = useUser();
+  const posthog = usePostHog();
   // Get user display name: firstName, fullName, or email
   const displayName =
     user?.firstName ||
@@ -31,8 +33,16 @@ export default function Index() {
   >(null);
 
   const handleSubscriptionPress = (item: Subscription) => {
+    const isExpanding = expandedSubscriptionId !== item.id;
     setExpandedSubscriptionId((currentId) =>
       currentId === item.id ? null : item.id,
+    );
+    posthog.capture(
+      isExpanding ? "subscription_expanded" : "subscription_collapsed",
+      {
+        subscription_name: item.name,
+        subscription_id: item.id,
+      },
     );
   };
   return (

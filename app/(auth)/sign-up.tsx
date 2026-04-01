@@ -2,6 +2,7 @@ import { useAuth, useSignUp } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons"; //
 import { Link, useRouter, type Href } from "expo-router";
 import { styled } from "nativewind";
+import { usePostHog } from "posthog-react-native";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -17,10 +18,11 @@ import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 const SafeAreaView = styled(RNSafeAreaView);
 
 const SignUp = () => {
-  const [showPassword, setShowPassword] = useState(false); // add this
+  const [showPassword, setShowPassword] = useState(false);
   const { signUp, errors, fetchStatus } = useSignUp();
   const { isSignedIn } = useAuth();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +50,9 @@ const SignUp = () => {
 
     if (error) {
       console.error(JSON.stringify(error, null, 2));
+      posthog.capture("user_sign_up_failed", {
+        error_message: error.message,
+      });
       return;
     }
 
@@ -69,6 +74,12 @@ const SignUp = () => {
             console.log(session?.currentTask);
             return;
           }
+
+          posthog.identify(emailAddress, {
+            $set: { email: emailAddress },
+            $set_once: { sign_up_date: new Date().toISOString() },
+          });
+          posthog.capture("user_signed_up", { email: emailAddress });
 
           const url = decorateUrl("/(tabs)");
           if (url.startsWith("http")) {

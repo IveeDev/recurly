@@ -1,6 +1,7 @@
 import images from "@/constants/images";
 import { useClerk, useUser } from "@clerk/expo";
 import { styled } from "nativewind";
+import { usePostHog } from "posthog-react-native";
 import { Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 const SafeAreaView = styled(RNSafeAreaView);
@@ -8,11 +9,14 @@ const SafeAreaView = styled(RNSafeAreaView);
 const Settings = () => {
   const { signOut } = useClerk();
   const { user } = useUser();
+  const posthog = usePostHog();
 
   const handleSignOut = async () => {
+    posthog.capture("user_signed_out");
     try {
       await signOut();
       // Only reset analytics after successful sign-out
+      posthog.reset();
     } catch (error) {
       console.error("Sign-out failed:", error);
       // Don't reset analytics if sign-out failed
@@ -26,11 +30,6 @@ const Settings = () => {
     "User";
   const email = user?.emailAddresses[0]?.emailAddress;
 
-  const googleAccount = user?.externalAccounts?.find(
-    (account) => account.provider === "google",
-  );
-  const imageUrl = googleAccount?.imageUrl || user?.imageUrl || null;
-
   return (
     <SafeAreaView className="flex-1 bg-background p-5">
       <Text className="text-3xl font-sans-bold text-primary mb-6">
@@ -41,10 +40,8 @@ const Settings = () => {
       <View className="auth-card mb-5">
         <View className="flex-row items-center gap-4 mb-4">
           <Image
-            source={imageUrl ? { uri: imageUrl } : images.avatar}
+            source={user?.imageUrl ? { uri: user.imageUrl } : images.avatar}
             className="size-16 rounded-full"
-            onError={(e) => console.log("Image error:", e.nativeEvent.error)}
-            defaultSource={images.avatar}
           />
           <View className="flex-1">
             <Text className="text-lg font-sans-bold text-primary">
